@@ -10,15 +10,25 @@ def convert_weight(weight):
     real_min = weight.min()
     real_max = weight.max()
 
-    # assume that apply same quantization on whole layer
-    # affine quantization with 0 zero point (symmetric quantization)
-    quantization_target_bit = 8
-    double_multiplier = (real_max - real_min) / (2 ** quantization_target_bit - 1)
-    int_multiplier, shift = math.frexp(double_multiplier)
-    int_multiplier = int(int_multiplier * 2147483648) # 2147483648 = 1 << 31
+    # refer from https://github.com/ARM-software/CMSIS-NN/blob/main/Tests/UnitTest/generate_test_data.py 
+    quant_min = -128
+    quant_max = 127
+    weight_scale = (real_max - real_min) / ((quant_max * 1.0) - quant_min)
+    zeropoint = quant_min + int(-real_min / weight_scale + 0.5)
+    zeropoint = max(quant_min, min(zeropoint, -quant_min))
 
-    quantized_weight = np.round(weight / double_multiplier)
-    return (int_multiplier, shift, quantized_weight)
+    input_scale = 1 # just assume
+    output_scale = 1
+    real_scale = input_scale * weight_scale / output_scale
+    int_multiplier, shift = math.frexp(real_scale)
+    int_multiplier = round(int_multiplier * 2147483648) # 2147483648 = 1 << 31
+
+    quantized_weight = np.round(weight / real_scale)
+    return (int_multiplier, shift, zeropoint, real_scale, quantized_weight)
+
+def convert_bias(bias, scale):
+    quantized_bias = np.round(bias.detach().numpy() / scale)
+    return quantized_bias
 
 def format_1d_tensor(t):
     output = "{"
