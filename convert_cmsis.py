@@ -73,29 +73,19 @@ model = MorseCNN()
 model.load_state_dict(torch.load("./model"))
 
 print("Conv 1 ############")
-m, s, w = convert_weight(model.layer1[0].weight)
-print("weight (m={}, s={}) : ".format(m, s), format_3d_tensor(
+m, s, z, rs, w = convert_weight(model.layer1[0].weight)
+print("weight (m={}, s={}, z={}) : ".format(m, s, z), format_3d_tensor(
     np.int8(w)))
-m, s, w = convert_weight(model.layer1[0].bias)
-print("bias : (m={}, s={}) : ".format(m, s), format_1d_tensor(
-    np.int8(w)))
+b = convert_bias(model.layer1[0].bias, rs)
+print("bias : ", format_1d_tensor(
+    np.int32(b)))
 print("###################")
 
 print("Conv 2 ############")
-m, s, w = convert_weight(model.layer2[0].weight)
-print("weight (m={}, s={}) : ".format(m, s), format_3d_tensor(
+m, s, z, rs, w = convert_weight(model.layer2[0].weight)
+print("weight (m={}, s={}, z={}) : ".format(m, s, z), format_3d_tensor(
     np.int8(w)))
-m, s, w = convert_weight(model.layer2[0].bias)
-print("bias : (m={}, s={}) : ".format(m, s), format_1d_tensor(
-    np.int8(w)))
+b = convert_bias(model.layer2[0].bias, rs)
+print("bias : ", format_1d_tensor(
+    np.int32(b)))
 print("###################")
-
-print("FC ############")
-m, s, w = convert_weight(model.fc.weight)
-print("weight (m={}, s={}) : ".format(m, s), format_2d_tensor(
-    np.int8(w)))
-m, s, w = convert_weight(model.fc.bias)
-print("bias : (m={}, s={}) : ".format(m, s), format_1d_tensor(
-    np.int8(w)))
-print("###################")
-
