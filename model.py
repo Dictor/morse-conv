@@ -5,9 +5,9 @@ class MorseCNN(torch.nn.Module):
         super(MorseCNN, self).__init__()
 
         # L1
-        # input : 1 channel, 64 height, N batch
-        # after conv : 24 channel, 64 height, N batch
-        # after pool : 24 channel, 32 height, N batch
+        # input : 1 channel, 64 width, N batch
+        # after conv : 24 channel, 64 width, N batch
+        # after pool : 24 channel, 32 width, N batch
         self.layer1 = torch.nn.Sequential(
             torch.nn.Conv1d(1, 24, 3, padding=1),
             torch.nn.ReLU(),
@@ -15,9 +15,9 @@ class MorseCNN(torch.nn.Module):
         )
 
         # L2
-        # input : 32 channel, 32 height, N batch
-        # after conv : 48 channel, 32 height, N batch
-        # after pool : 48 channel, 16 height, N batch
+        # input : 24 channel, 32 width, N batch
+        # after conv : 48 channel, 32 width, N batch
+        # after pool : 48 channel, 16 width, N batch
         self.layer2 = torch.nn.Sequential(
             torch.nn.Conv1d(24, 48, 3, padding=1),
             torch.nn.ReLU(),
