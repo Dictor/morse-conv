@@ -9,7 +9,7 @@ if device == 'cuda':
 print("현재 device : {}".format(device))
 
 learning_rate = 0.001
-training_epochs = 15
+training_epochs = 30
 batch_size = 100
 
 xtr, ytr, xva, yva, xte, yte = load_data("jeonghyun.npz")
