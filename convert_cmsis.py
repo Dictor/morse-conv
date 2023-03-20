@@ -46,7 +46,7 @@ def format_2d_tensor(t):
     output = "{"
     for j in range(height):
         for k in range(width):
-            output += "{0:d}".format(t[j][k])
+            output += "{0:f}".format(t[j][k])
             if k != width-1 or j != height-1:
                 output += ", "
     output += "}"
@@ -74,7 +74,7 @@ model.load_state_dict(torch.load("./model"))
 
 print("Conv 1 ############")
 m, s, z, rs, w = convert_weight(model.layer1[0].weight)
-print("weight (m={}, s={}, z={}) : ".format(m, s, z), format_3d_tensor(
+print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
 b = convert_bias(model.layer1[0].bias, rs)
 print("bias : ", format_1d_tensor(
@@ -83,9 +83,16 @@ print("###################")
 
 print("Conv 2 ############")
 m, s, z, rs, w = convert_weight(model.layer2[0].weight)
-print("weight (m={}, s={}, z={}) : ".format(m, s, z), format_3d_tensor(
+print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
 b = convert_bias(model.layer2[0].bias, rs)
 print("bias : ", format_1d_tensor(
     np.int32(b)))
+print("###################")
+
+print("FC     ############")
+fcf = open("fc.txt", "w")
+fcf.write(format_2d_tensor(model.fc.weight))
+fcf.close()
+print("wrote")
 print("###################")
