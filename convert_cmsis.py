@@ -5,19 +5,18 @@ import math
 
 # https://community.arm.com/arm-community-blogs/b/architectures-and-processors-blog/posts/deploying-convolutional-neural-network-on-cortex-m-with-cmsis-nn
 
-def convert_weight(weight):
+def convert_weight(weight, input_scale = 1):
     weight = weight.detach().numpy()
     real_min = weight.min()
     real_max = weight.max()
 
     # refer from https://github.com/ARM-software/CMSIS-NN/blob/main/Tests/UnitTest/generate_test_data.py 
-    quant_min = -128
-    quant_max = 127
+    quant_min = -127
+    quant_max = 128
     weight_scale = (real_max - real_min) / ((quant_max * 1.0) - quant_min)
     zeropoint = quant_min + int(-real_min / weight_scale + 0.5)
     zeropoint = max(quant_min, min(zeropoint, -quant_min))
 
-    input_scale = 1 # just assume
     output_scale = 1
     real_scale = input_scale * weight_scale / output_scale
     int_multiplier, shift = math.frexp(real_scale)
@@ -76,13 +75,14 @@ print("Conv 1 ############")
 m, s, z, rs, w = convert_weight(model.layer1[0].weight)
 print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
+rs1 = rs
 b = convert_bias(model.layer1[0].bias, rs)
 print("bias : ", format_1d_tensor(
     np.int32(b)))
 print("###################")
 
 print("Conv 2 ############")
-m, s, z, rs, w = convert_weight(model.layer2[0].weight)
+m, s, z, rs, w = convert_weight(model.layer2[0].weight, rs1)
 print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
 b = convert_bias(model.layer2[0].bias, rs)
