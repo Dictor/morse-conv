@@ -5,7 +5,7 @@ from load_data import load_data
 from model_tf import MorseCNN
 
 learning_rate = 0.001
-training_epochs = 30
+training_epochs = 20
 batch_size = 100
 
 xtr, ytr, xva, yva, xte, yte = load_data("jeonghyun.npz")
@@ -29,12 +29,22 @@ xtr = tf.convert_to_tensor(xtr)
 ytr = tf.convert_to_tensor(ytr)
 xva = tf.convert_to_tensor(xva)
 yva = tf.convert_to_tensor(yva)
-tf.print(ytr)
 
 model.fit(x=xtr, y=ytr, epochs=training_epochs,
           batch_size=batch_size, validation_data=(xva, yva))
 
+
+def representative_dataset():
+    yield [xte.astype(np.float32)]
+
+
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
-tflite_model = converter.convert()
-with open('model.tflite', 'wb') as f:
-  f.write(tflite_model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+converter.representative_dataset = representative_dataset
+converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+converter.inference_input_type = tf.int8  # or tf.uint8
+converter.inference_output_type = tf.int8  # or tf.uint8
+tflite_quant_model = converter.convert()
+
+with open('morse_int8.tflite', 'wb') as f:
+    f.write(tflite_quant_model)
