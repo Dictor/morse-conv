@@ -11,22 +11,26 @@ def convert_weight(weight, input_scale = 1):
     real_max = weight.max()
 
     # refer from https://github.com/ARM-software/CMSIS-NN/blob/main/Tests/UnitTest/generate_test_data.py 
-    quant_min = -127
-    quant_max = 128
+    quant_min = -128
+    quant_max = 127
     weight_scale = (real_max - real_min) / ((quant_max * 1.0) - quant_min)
     zeropoint = quant_min + int(-real_min / weight_scale + 0.5)
-    zeropoint = max(quant_min, min(zeropoint, -quant_min))
+    zeropoint = max(quant_min, min(zeropoint, quant_max))
 
     output_scale = 1
     real_scale = input_scale * weight_scale / output_scale
     int_multiplier, shift = math.frexp(real_scale)
     int_multiplier = round(int_multiplier * 2147483648) # 2147483648 = 1 << 31
 
-    quantized_weight = np.round(weight / real_scale)
+# 왜 int8 범위를 초과하는 값이 나오는가????
+    quantized_weight = np.round(weight / weight_scale)
+    quantized_weight = np.add(quantized_weight, zeropoint)
+    quantized_weight = np.clip(quantized_weight, quant_min, quant_max)
     return (int_multiplier, shift, zeropoint, real_scale, quantized_weight)
 
-def convert_bias(bias, scale):
+def convert_bias(bias, scale, zeropoint):
     quantized_bias = np.round(bias.detach().numpy() / scale)
+    quantized_bias = np.add(quantized_bias, zeropoint)
     return quantized_bias
 
 def format_1d_tensor(t):
@@ -71,12 +75,22 @@ print("weight quantilizer & C array formatter")
 model = MorseCNN()
 model.load_state_dict(torch.load("./model"))
 
+print("Input  ############")
+zero_and_one = torch.tensor([0.0, 1.0])
+m, s, z, rs, w = convert_weight(zero_and_one)
+print("input (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_1d_tensor(
+    np.int8(w)))
+rsi = rs
+print("###################")
+
 print("Conv 1 ############")
-m, s, z, rs, w = convert_weight(model.layer1[0].weight)
+conv1_weight = model.layer1[0].weight 
+conv1_weight = conv1_weight.permute(1, 2, 0) # CHW to HWC
+m, s, z, rs, w = convert_weight(conv1_weight, rsi)
 print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
 rs1 = rs
-b = convert_bias(model.layer1[0].bias, rs)
+b = convert_bias(model.layer1[0].bias, rs, z)
 print("bias : ", format_1d_tensor(
     np.int32(b)))
 print("###################")
@@ -85,7 +99,7 @@ print("Conv 2 ############")
 m, s, z, rs, w = convert_weight(model.layer2[0].weight, rs1)
 print("weight (m={}, s={}, z={}, rs={}) : ".format(m, s, z, rs), format_3d_tensor(
     np.int8(w)))
-b = convert_bias(model.layer2[0].bias, rs)
+b = convert_bias(model.layer2[0].bias, rs, z)
 print("bias : ", format_1d_tensor(
     np.int32(b)))
 print("###################")
