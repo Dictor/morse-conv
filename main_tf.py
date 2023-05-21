@@ -1,5 +1,6 @@
 import tensorflow as tf
-from keras import datasets
+import numpy as np
+from keras import optimizers, losses, metrics
 from load_data import load_data
 from model_tf import MorseCNN
 
@@ -8,48 +9,32 @@ training_epochs = 30
 batch_size = 100
 
 xtr, ytr, xva, yva, xte, yte = load_data("jeonghyun.npz")
-model = MorseCNN().to(device)
+model = MorseCNN()
+model.compile(optimizer=optimizers.Adam(learning_rate=learning_rate),
+              loss=losses.CategoricalCrossentropy(from_logits=True), metrics=[metrics.CategoricalAccuracy()])
 
 
-total_train_data = len(ytr)
-total_batch = int(total_train_data / batch_size)
-print("총 학습 데이터 {0}개, 총 배치 수 {1}개".format(total_train_data, total_batch))
+def limit_onehot_array_to_tensor(arr):
+    arr = np.argmax(arr, axis=1)
+    arr[arr > 36] = 36
+    arro = np.zeros((arr.size, arr.max() + 1))
+    arro[np.arange(arr.size), arr] = 1
+    return arro
 
-for epoch in range(training_epochs):
-    avg_cost = 0
 
-    for current_set in range(batch_size):
-        idx_from = batch_size * current_set
-        idx_to = batch_size * (current_set + 1)
-        x = torch.from_numpy(xtr[idx_from : idx_to]).to(device).float()
-        x = x.unsqueeze(1)
-        y = torch.from_numpy(ytr[idx_from : idx_to]).to(device).float()
-        _, y = y.max(dim=1) # parse one hot to label
-        y = torch.where(y < 36, y, 36)
-        optimizer.zero_grad()
-        hypothesis = model(x)
-        cost = criterion(hypothesis, y)
-        cost.backward()
-        optimizer.step()
-        avg_cost += cost / total_batch
-    
-    print('[Epoch: {:>4}] cost = {:>.9}'.format(epoch + 1, avg_cost))
+ytr = limit_onehot_array_to_tensor(ytr)
+yva = limit_onehot_array_to_tensor(yva)
 
-with torch.no_grad():
-    model.eval()
-    corr = 0
-    running_loss = 0
-    test_set_length = len(xva)
+xtr = tf.convert_to_tensor(xtr)
+ytr = tf.convert_to_tensor(ytr)
+xva = tf.convert_to_tensor(xva)
+yva = tf.convert_to_tensor(yva)
+tf.print(ytr)
 
-    for current_set in range(test_set_length):
-        x = torch.from_numpy(xva[current_set]).to(device).float()
-        x = x.unsqueeze(0).unsqueeze(0) # make dummy 3D tensor width batch size 1
-        y = torch.from_numpy(yva[current_set]).to(device).float()
-        output = model(x)
-        _, predict = output.max(dim=1)
-        corr += torch.sum(predict.eq(y)).item()
-        
-    acc = corr / test_set_length
-    print("Accuracy: {}".format(acc))
+model.fit(x=xtr, y=ytr, epochs=training_epochs,
+          batch_size=batch_size, validation_data=(xva, yva))
 
-torch.save(model.state_dict(), "model")
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
+with open('model.tflite', 'wb') as f:
+  f.write(tflite_model)
